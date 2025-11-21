@@ -1,0 +1,33 @@
+{
+  "name": "catering-app-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for the catering application using React and Cloudflare Pages",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "catering",
+    "cloudflare",
+    "react",
+    "frontend"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "date-fns": "^2.29.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.21.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.46",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12",
+    "vite-tsconfig-paths": "^4.3.1"
+  }
+}

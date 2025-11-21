@@ -1,0 +1,9 @@
+{
+  "out": "./migrations",
+  "schema": "./db/schema.ts",
+  "driver": "d1",
+  "dbCredentials": {
+    "wranglerConfigPath": "wrangler.toml",
+    "dbName": "catering-db"
+  }
+}
