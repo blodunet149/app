@@ -381,6 +381,174 @@ app.get('/for-cooking', authMiddleware, async (c) => {
   }
 });
 
+// Admin: Update order status (for kitchen workflow)
+app.put('/:id/status', authMiddleware, async (c) => {
+  const db = drizzle(c.env.DB, { schema });
+  const id = parseInt(c.req.param('id'));
+
+  // Get user role from context set by auth middleware
+  const userRole = c.get('userRole');
+  const userId = c.get('userId');
+
+  if (userRole !== 'admin') {
+    return c.json({ error: 'Admin access required' }, 403);
+  }
+
+  const { status } = await c.req.json();
+
+  // Validate status transition
+  const validStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'];
+  if (!validStatuses.includes(status)) {
+    return c.json({ error: 'Invalid status' }, 400);
+  }
+
+  try {
+    const updatedOrder = await db.update(schema.orders)
+      .set({
+        status,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(schema.orders.id, id))
+      .returning();
+
+    if (updatedOrder.length === 0) {
+      return c.json({ error: 'Order not found' }, 404);
+    }
+
+    return c.json({ order: updatedOrder[0] });
+  } catch (error) {
+    return c.json({ error: 'Failed to update order status' }, 500);
+  }
+});
+
+// Admin: Mark order as ready for delivery
+app.put('/:id/ready', authMiddleware, async (c) => {
+  const db = drizzle(c.env.DB, { schema });
+  const id = parseInt(c.req.param('id'));
+
+  // Get user role from context set by auth middleware
+  const userRole = c.get('userRole');
+  const userId = c.get('userId');
+
+  if (userRole !== 'admin') {
+    return c.json({ error: 'Admin access required' }, 403);
+  }
+
+  try {
+    const updatedOrder = await db.update(schema.orders)
+      .set({
+        status: 'ready',
+        updatedAt: new Date().toISOString(),
+      })
+      .where(and(
+        eq(schema.orders.id, id),
+        eq(schema.orders.status, 'preparing') // Only from preparing status
+      ))
+      .returning();
+
+    if (updatedOrder.length === 0) {
+      return c.json({ error: 'Order not found or not in preparing status' }, 404);
+    }
+
+    // Send notification to user that order is ready
+    // In a real implementation, this could trigger a notification/push
+
+    return c.json({ order: updatedOrder[0] });
+  } catch (error) {
+    return c.json({ error: 'Failed to update order status to ready' }, 500);
+  }
+});
+
+// Admin: Get daily cooking report
+app.get('/daily-report/:date', authMiddleware, async (c) => {
+  const db = drizzle(c.env.DB, { schema });
+  const date = c.req.param('date'); // Format: YYYY-MM-DD
+
+  // Get user role from context set by auth middleware
+  const userRole = c.get('userRole');
+  const userId = c.get('userId');
+
+  if (userRole !== 'admin') {
+    return c.json({ error: 'Admin access required' }, 403);
+  }
+
+  try {
+    // Get all orders for the specific date
+    const orders = await db.select({
+      id: schema.orders.id,
+      menuId: schema.orders.menuId,
+      quantity: schema.orders.quantity,
+      orderDate: schema.orders.orderDate,
+      specialInstructions: schema.orders.specialInstructions,
+      totalPrice: schema.orders.totalPrice,
+      status: schema.orders.status,
+      paymentStatus: schema.orders.paymentStatus,
+      createdAt: schema.orders.createdAt,
+      userName: schema.users.username,
+      menuName: schema.menu.name,
+      menuDescription: schema.menu.description,
+    })
+    .from(schema.orders)
+    .leftJoin(schema.users, eq(schema.orders.userId, schema.users.id))
+    .leftJoin(schema.menu, eq(schema.orders.menuId, schema.menu.id))
+    .where(eq(schema.orders.orderDate, date))
+    .orderBy(schema.orders.createdAt);
+
+    // Calculate daily statistics
+    const totalOrders = orders.length;
+    const totalQuantities = orders.reduce((sum, order) => sum + order.quantity, 0);
+    const paidOrders = orders.filter(order => order.paymentStatus === 'paid');
+    const totalRevenue = paidOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+
+    // Group by menu for kitchen planning
+    const menuBreakdown = orders.reduce((acc, order) => {
+      const menuName = order.menuName;
+      if (!acc[menuName]) {
+        acc[menuName] = {
+          menuName: menuName,
+          totalQuantity: 0,
+          orders: 0,
+          specialInstructions: []
+        };
+      }
+
+      acc[menuName].totalQuantity += order.quantity;
+      acc[menuName].orders += 1;
+
+      if (order.specialInstructions) {
+        acc[menuName].specialInstructions.push({
+          userId: order.userName,
+          instruction: order.specialInstructions
+        });
+      }
+
+      return acc;
+    }, {});
+
+    // Count by status
+    const statusCounts = orders.reduce((acc, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1;
+      return acc;
+    }, {});
+
+    return c.json({
+      date: date,
+      statistics: {
+        totalOrders,
+        totalQuantities,
+        totalRevenue,
+        totalPaidOrders: paidOrders.length,
+        unpaidOrders: totalOrders - paidOrders.length,
+        statusCounts
+      },
+      menuBreakdown: Object.values(menuBreakdown),
+      orders
+    });
+  } catch (error) {
+    return c.json({ error: 'Failed to get daily report' }, 500);
+  }
+});
+
 // Admin: Get cooking schedule - only paid orders that need to be prepared
 app.get('/for-cooking-paid', authMiddleware, async (c) => {
   const db = drizzle(c.env.DB, { schema });
