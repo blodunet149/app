@@ -3,7 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../db/schema';
-import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, or } from 'drizzle-orm';
 import { getAvailableDates } from '../../utils/date-utils';
 import { authMiddleware } from '../middleware/auth';
 
@@ -333,8 +333,16 @@ app.get('/for-cooking', authMiddleware, async (c) => {
     .leftJoin(schema.menu, eq(schema.orders.menuId, schema.menu.id))
     .where(and(
       eq(schema.orders.orderDate, targetDate),
-      inArray(schema.orders.paymentStatus, ['paid', 'pending']), // Include both paid and pending orders
-      inArray(schema.orders.status, ['pending', 'confirmed', 'preparing', 'ready']) // Orders that need attention
+      or(
+        eq(schema.orders.paymentStatus, 'paid'),
+        eq(schema.orders.paymentStatus, 'pending')
+      ),
+      or(
+        eq(schema.orders.status, 'pending'),
+        eq(schema.orders.status, 'confirmed'),
+        eq(schema.orders.status, 'preparing'),
+        eq(schema.orders.status, 'ready')
+      )
     ))
     .orderBy(schema.orders.createdAt); // Order by creation time
 
@@ -592,7 +600,11 @@ app.get('/for-cooking-paid', authMiddleware, async (c) => {
     .where(and(
       eq(schema.orders.orderDate, targetDate),
       eq(schema.orders.paymentStatus, 'paid'), // Only paid orders
-      inArray(schema.orders.status, ['confirmed', 'preparing', 'ready']) // Orders that need cooking
+      or(
+        eq(schema.orders.status, 'confirmed'),
+        eq(schema.orders.status, 'preparing'),
+        eq(schema.orders.status, 'ready')
+      ) // Orders that need cooking
     ))
     .orderBy(schema.orders.createdAt);
 

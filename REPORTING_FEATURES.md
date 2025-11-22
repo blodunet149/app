@@ -276,3 +276,35 @@ Endpoint ini dirancang untuk memberikan visibilitas penuh atas operasional cater
 6. **Pemantauan Kinerja**: Dengan data statistik, bisa mengevaluasi kinerja harian, mingguan, atau bulanan
 
 Fitur ini meningkatkan koordinasi antara tim penjualan, admin, dan tim dapur, memastikan order diproses secara efisien dan akurat.
+
+## Akses Admin
+
+Untuk mengakses fitur admin, Anda dapat:
+
+1. **Menggunakan akun admin yang sudah ada** (jika dibuat sebelumnya)
+2. **Membuat akun admin baru** melalui endpoint registrasi dengan menetapkan role ke "admin"
+3. **Mengupdate role akun yang sudah ada menjadi admin** melalui database
+
+Contoh registrasi admin:
+```javascript
+// Registrasi akun admin baru
+const registerResponse = await fetch('/api/register', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    username: 'admin_user',
+    email: 'admin@example.com',
+    password: 'secure_password',
+    role: 'admin'  // Set role sebagai admin
+  })
+});
+```
+
+## Perbaikan dan Pemeliharaan
+
+Beberapa perbaikan telah dilakukan untuk memastikan semua endpoint berfungsi optimal:
+- Memperbaiki error 500 pada endpoint `/api/order/for-cooking` dan `/api/order/for-cooking-paid`
+- Menggunakan fungsi `or()` dari drizzle-orm untuk query yang kompleks
+- Meningkatkan validasi dan penanganan error
