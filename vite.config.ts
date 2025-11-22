@@ -5,6 +5,7 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
+  base: './', // Gunakan relative path agar kompatibel dengan deployment Cloudflare Pages
   build: {
     outDir: './dist',
     rollupOptions: {
