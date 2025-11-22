@@ -1,5 +1,6 @@
 name = "catering-app"
 compatibility_date = "2023-12-01"
+main = "functions/index.ts"
 
 [env.production]
 account_id = "f02feae0cf0a84543999af688f33a7bf"
@@ -11,9 +12,5 @@ database_name = "catering_db"
 database_id = "10d6dc18-7d6d-48da-a20c-6e70ed999194"
 migrations_dir = "./migrations"
 
-[env.production.vars]
+[vars]
 NODE_ENV = "production"
-
-# Use the Vite adapter for Hono + Cloudflare
-[build]
-command = "npx wrangler deploy"
