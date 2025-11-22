@@ -7,7 +7,7 @@ export const users = sqliteTable('users', {
   username: text('username').notNull().unique(),
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
-  salt: numeric('salt', { mode: 'array' }).$type<number[]>().notNull(), // Store as array of numbers
+  salt: text('salt').notNull(), // Store as hex string
   role: text('role', { enum: ['user', 'admin'] }).notNull().default('user'),
   createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
@@ -45,6 +45,12 @@ export const orders = sqliteTable('orders', {
   status: text('status', { enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'] })
     .notNull()
     .default('pending'),
+  paymentStatus: text('payment_status', { enum: ['unpaid', 'pending', 'paid', 'cancelled', 'refunded', 'partial_refund'] })
+    .notNull()
+    .default('unpaid'),
+  paymentId: text('payment_id'), // Midtrans transaction ID
+  paymentToken: text('payment_token'), // Token for client-side payment
+  paymentUrl: text('payment_url'), // Payment URL for redirect
   createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
 });

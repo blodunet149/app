@@ -1,10 +1,8 @@
 name = "catering-app"
-compatibility_date = "2023-12-01"
+compatibility_date = "2024-12-01"
 main = "functions/index.ts"
+compatibility_flags = ["nodejs_compat"]
 
-[env.production]
-account_id = "2f85aafa98f3148b77205259e5d59ce6"
-name = "catering-app-production"
 routes = ["catering.hijrah-attauhid.or.id/api/*"]
 
 [[d1_databases]]
@@ -13,6 +11,9 @@ database_name = "catering-app-db"
 database_id = "a35d5ff1-b8fa-46c0-95c7-5bdce7d61c57"
 migrations_dir = "./migrations"
 
-[env.production.vars]
-NODE_ENV = "production"
-JWT_SECRET = "your-super-secret-jwt-key-here-change-this-in-production"
+# Environment variables for the application
+[vars]
+NODE_ENV = "development"
+JWT_SECRET = "4c4181bb7d958c4bbe864c983cd01af54923500ddb1de6c0c900d98dcc00894d37cef4f7afb7c2552c8814e0faff8263058d123262e4cb412ae3d8ff35507290"
+MIDTRANS_SERVER_KEY = "SB-Mid-server-7zFTzyxPHcDaj19-KhQ_CPGV"
+MIDTRANS_CLIENT_KEY = "SB-Mid-client-8LumxhWCUi6hVWMv"

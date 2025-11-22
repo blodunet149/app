@@ -1,8 +1,8 @@
 import { Context, Next } from 'hono';
 
 // JWT utility functions for Workers Environment
-const encodeBase64 = (bytes: Uint8Array): string => {
-  const binary = Array.from(bytes).map(byte => String.fromCharCode(byte)).join('');
+const encodeBase64 = (uint8Array: Uint8Array): string => {
+  const binary = Array.from(uint8Array).map(byte => String.fromCharCode(byte)).join('');
   return btoa(binary);
 };
 
@@ -15,10 +15,15 @@ const decodeBase64 = (str: string): Uint8Array => {
   return bytes;
 };
 
-const encodeBase64Url = (str: string): string => {
-  const encoder = new TextEncoder();
-  const bytes = encoder.encode(str);
-  const base64 = encodeBase64(bytes);
+const encodeBase64Url = (input: string | Uint8Array): string => {
+  let base64: string;
+  if (typeof input === 'string') {
+    const encoder = new TextEncoder();
+    const uint8Array = encoder.encode(input);
+    base64 = encodeBase64(uint8Array);
+  } else {
+    base64 = encodeBase64(input);
+  }
   return base64
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
@@ -34,26 +39,37 @@ const decodeBase64Url = (str: string): Uint8Array => {
 
 const createHmacSha256 = async (key: string, message: string): Promise<Uint8Array> => {
   const encoder = new TextEncoder();
+  const keyBuffer = encoder.encode(key);
+  const msgBuffer = encoder.encode(message);
+  
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(key),
+    keyBuffer,
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
   );
   
-  const signature = await crypto.subtle.sign(
+  const signatureBuffer = await crypto.subtle.sign(
     'HMAC',
     cryptoKey,
-    encoder.encode(message)
+    msgBuffer
   );
   
-  return new Uint8Array(signature);
+  return new Uint8Array(signatureBuffer);
 };
 
 const verifyHmacSha256 = async (key: string, message: string, signature: Uint8Array): Promise<boolean> => {
   const validSignature = await createHmacSha256(key, message);
-  return validSignature.every((byte, i) => byte === signature[i]);
+  if (validSignature.length !== signature.length) {
+    return false;
+  }
+  for (let i = 0; i < validSignature.length; i++) {
+    if (validSignature[i] !== signature[i]) {
+      return false;
+    }
+  }
+  return true;
 };
 
 const verifyJWT = async (token: string, secret: string): Promise<any | null> => {
@@ -98,7 +114,10 @@ export const authMiddleware = async (c: Context, next: Next) => {
     return c.json({ error: 'No access token provided' }, 401);
   }
 
-  const JWT_SECRET = c.env.JWT_SECRET || 'fallback-secret';
+  const JWT_SECRET = c.env.JWT_SECRET;
+  if (!JWT_SECRET) {
+    return c.json({ error: "JWT_SECRET not set" }, 500);
+  }
 
   try {
     const payload = await verifyJWT(token, JWT_SECRET);
