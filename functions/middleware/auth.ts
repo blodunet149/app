@@ -34,19 +34,17 @@ const verifyJWT = async (token: string, secret: string): Promise<any | null> => 
   }
 
   const signatureInput = `${encodedHeader}.${encodedPayload}`;
-  const textEncoder = new TextEncoder();
-  const signatureArray = new Uint8Array(
-    Array.from(decodeBase64Url(encodedSignature))
-      .map(char => char.charCodeAt(0))
-  );
+  const signatureArray = decodeBase64Url(encodedSignature);
 
   const isValid = await verifyHmacSha256(secret, signatureInput, signatureArray);
   if (!isValid) {
     return null;
   }
 
+  const payloadBytes = decodeBase64Url(encodedPayload);
   const textDecoder = new TextDecoder();
-  const payload = JSON.parse(textDecoder.decode(decodeBase64Url(encodedPayload)));
+  const payloadStr = textDecoder.decode(payloadBytes);
+  const payload = JSON.parse(payloadStr);
   const now = Math.floor(Date.now() / 1000);
 
   if (payload.exp < now) {
