@@ -4,13 +4,14 @@ import { z } from 'zod';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../db/schema';
 import { eq, and, gte, lte } from 'drizzle-orm';
+import { authMiddleware } from '../middleware/auth';
 
 const app = new Hono();
 
-// Get all menu items (available or not)
-app.get('/', async (c) => {
+// Get all menu items (available or not) - requires authentication
+app.get('/', authMiddleware, async (c) => {
   const db = drizzle(c.env.DB, { schema });
-  
+
   try {
     const menuItems = await db.select().from(schema.menu).all();
     return c.json({ menuItems });
@@ -19,10 +20,10 @@ app.get('/', async (c) => {
   }
 });
 
-// Get only available menu items for ordering
-app.get('/available', async (c) => {
+// Get only available menu items for ordering - requires authentication
+app.get('/available', authMiddleware, async (c) => {
   const db = drizzle(c.env.DB, { schema });
-  
+
   try {
     // Only get items that are currently available for ordering based on available dates
     const menuItems = await db.select().from(schema.menu).where(eq(schema.menu.available, true));
@@ -33,7 +34,7 @@ app.get('/available', async (c) => {
 });
 
 // Admin: Create menu item
-app.post('/', zValidator(
+app.post('/', authMiddleware, zValidator(
   'json',
   z.object({
     name: z.string().min(1).max(255),
@@ -44,38 +45,15 @@ app.post('/', zValidator(
   })
 ), async (c) => {
   const db = drizzle(c.env.DB, { schema });
-  
-  // Check if user is admin (simplified - in real app you'd validate session)
-  const sessionId = c.req.header('Cookie')?.match(/session_id=([^;]+)/)?.[1];
-  if (!sessionId) {
-    return c.json({ error: 'Not authenticated' }, 401);
+
+  // Get user role from context set by auth middleware
+  const userRole = c.get('userRole');
+  const userId = c.get('userId');
+
+  if (userRole !== 'admin') {
+    return c.json({ error: 'Admin access required' }, 403);
   }
-  
-  // Validate admin role
-  try {
-    const sessionResults = await db.select()
-      .from(schema.sessions)
-      .where((sessions) => sessions.id === sessionId && sessions.expiresAt > new Date().toISOString())
-      .limit(1);
 
-    if (sessionResults.length === 0) {
-      return c.json({ error: 'Session expired' }, 401);
-    }
-
-    const session = sessionResults[0];
-    
-    const userResults = await db.select({ role: schema.users.role })
-      .from(schema.users)
-      .where((users) => users.id === session.userId)
-      .limit(1);
-
-    if (userResults.length === 0 || userResults[0].role !== 'admin') {
-      return c.json({ error: 'Admin access required' }, 403);
-    }
-  } catch (error) {
-    return c.json({ error: 'Failed to validate admin access' }, 500);
-  }
-  
   const { name, description, price, photoUrl, available } = c.req.valid('json');
 
   try {
@@ -98,7 +76,7 @@ app.post('/', zValidator(
 });
 
 // Admin: Update menu item
-app.put('/:id', zValidator(
+app.put('/:id', authMiddleware, zValidator(
   'json',
   z.object({
     name: z.string().min(1).max(255).optional(),
@@ -110,36 +88,13 @@ app.put('/:id', zValidator(
 ), async (c) => {
   const db = drizzle(c.env.DB, { schema });
   const id = parseInt(c.req.param('id'));
-  
-  // Check if user is admin
-  const sessionId = c.req.header('Cookie')?.match(/session_id=([^;]+)/)?.[1];
-  if (!sessionId) {
-    return c.json({ error: 'Not authenticated' }, 401);
-  }
-  
-  // Validate admin role
-  try {
-    const sessionResults = await db.select()
-      .from(schema.sessions)
-      .where((sessions) => sessions.id === sessionId && sessions.expiresAt > new Date().toISOString())
-      .limit(1);
 
-    if (sessionResults.length === 0) {
-      return c.json({ error: 'Session expired' }, 401);
-    }
+  // Get user role from context set by auth middleware
+  const userRole = c.get('userRole');
+  const userId = c.get('userId');
 
-    const session = sessionResults[0];
-    
-    const userResults = await db.select({ role: schema.users.role })
-      .from(schema.users)
-      .where((users) => users.id === session.userId)
-      .limit(1);
-
-    if (userResults.length === 0 || userResults[0].role !== 'admin') {
-      return c.json({ error: 'Admin access required' }, 403);
-    }
-  } catch (error) {
-    return c.json({ error: 'Failed to validate admin access' }, 500);
+  if (userRole !== 'admin') {
+    return c.json({ error: 'Admin access required' }, 403);
   }
 
   const { name, description, price, photoUrl, available } = c.req.valid('json');
@@ -168,39 +123,16 @@ app.put('/:id', zValidator(
 });
 
 // Admin: Delete menu item
-app.delete('/:id', async (c) => {
+app.delete('/:id', authMiddleware, async (c) => {
   const db = drizzle(c.env.DB, { schema });
   const id = parseInt(c.req.param('id'));
-  
-  // Check if user is admin
-  const sessionId = c.req.header('Cookie')?.match(/session_id=([^;]+)/)?.[1];
-  if (!sessionId) {
-    return c.json({ error: 'Not authenticated' }, 401);
-  }
-  
-  // Validate admin role
-  try {
-    const sessionResults = await db.select()
-      .from(schema.sessions)
-      .where((sessions) => sessions.id === sessionId && sessions.expiresAt > new Date().toISOString())
-      .limit(1);
 
-    if (sessionResults.length === 0) {
-      return c.json({ error: 'Session expired' }, 401);
-    }
+  // Get user role from context set by auth middleware
+  const userRole = c.get('userRole');
+  const userId = c.get('userId');
 
-    const session = sessionResults[0];
-    
-    const userResults = await db.select({ role: schema.users.role })
-      .from(schema.users)
-      .where((users) => users.id === session.userId)
-      .limit(1);
-
-    if (userResults.length === 0 || userResults[0].role !== 'admin') {
-      return c.json({ error: 'Admin access required' }, 403);
-    }
-  } catch (error) {
-    return c.json({ error: 'Failed to validate admin access' }, 500);
+  if (userRole !== 'admin') {
+    return c.json({ error: 'Admin access required' }, 403);
   }
 
   try {
