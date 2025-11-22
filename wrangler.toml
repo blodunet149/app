@@ -5,7 +5,7 @@ main = "functions/index.ts"
 [env.production]
 account_id = "2f85aafa98f3148b77205259e5d59ce6"
 name = "catering-app-production"
-routes = ["catering.hijrah-attauhid.or.id/*"]
+routes = ["catering.hijrah-attauhid.or.id/api/*"]
 
 [[d1_databases]]
 binding = "DB"
