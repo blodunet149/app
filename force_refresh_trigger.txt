@@ -1,3 +1,1 @@
-// Add a small change to trigger rebuild and ensure all assets are refreshed
-// Timestamp: November 22, 2025 - 11:50 AM
-// Purpose: Force new build with fresh assets and proper headers
+Force deployment refresh: 2025-11-22 12:10:00
