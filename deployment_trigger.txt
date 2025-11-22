@@ -1,3 +1,1 @@
-// This is a dummy change to trigger deployment
-// Last updated: November 22, 2025
-// Purpose: Force rebuild to include admin dashboard features
+Trigger rebuild: 2025-11-22 12:01:27
