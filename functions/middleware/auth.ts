@@ -1,23 +1,53 @@
 import { Context, Next } from 'hono';
-import { decodeBase64Url } from '../utils/jwt-utils';
 
-// JWT utility functions
+// JWT utility functions for Workers Environment
+const encodeBase64 = (bytes: Uint8Array): string => {
+  const binary = Array.from(bytes).map(byte => String.fromCharCode(byte)).join('');
+  return btoa(binary);
+};
+
+const decodeBase64 = (str: string): Uint8Array => {
+  const binary = atob(str);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+};
+
+const encodeBase64Url = (str: string): string => {
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(str);
+  const base64 = encodeBase64(bytes);
+  return base64
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+};
+
+const decodeBase64Url = (str: string): Uint8Array => {
+  // Add padding if needed
+  const padding = '='.repeat((4 - str.length % 4) % 4);
+  const base64 = str.replace(/-/g, '+').replace(/_/g, '/') + padding;
+  return decodeBase64(base64);
+};
+
 const createHmacSha256 = async (key: string, message: string): Promise<Uint8Array> => {
-  const textEncoder = new TextEncoder();
+  const encoder = new TextEncoder();
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    textEncoder.encode(key),
+    encoder.encode(key),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
   );
-
+  
   const signature = await crypto.subtle.sign(
     'HMAC',
     cryptoKey,
-    textEncoder.encode(message)
+    encoder.encode(message)
   );
-
+  
   return new Uint8Array(signature);
 };
 
@@ -28,46 +58,46 @@ const verifyHmacSha256 = async (key: string, message: string, signature: Uint8Ar
 
 const verifyJWT = async (token: string, secret: string): Promise<any | null> => {
   const [encodedHeader, encodedPayload, encodedSignature] = token.split('.');
-
+  
   if (!encodedHeader || !encodedPayload || !encodedSignature) {
     return null;
   }
-
+  
   const signatureInput = `${encodedHeader}.${encodedPayload}`;
   const signatureArray = decodeBase64Url(encodedSignature);
-
+  
   const isValid = await verifyHmacSha256(secret, signatureInput, signatureArray);
   if (!isValid) {
     return null;
   }
-
+  
   const payloadBytes = decodeBase64Url(encodedPayload);
-  const textDecoder = new TextDecoder();
-  const payloadStr = textDecoder.decode(payloadBytes);
+  const decoder = new TextDecoder();
+  const payloadStr = decoder.decode(payloadBytes);
   const payload = JSON.parse(payloadStr);
   const now = Math.floor(Date.now() / 1000);
-
+  
   if (payload.exp < now) {
     return null;
   }
-
+  
   return payload;
 };
 
 // Authentication middleware
 export const authMiddleware = async (c: Context, next: Next) => {
-  // Get tokens from cookies
-  const cookies = c.req.header('Cookie');
-  if (!cookies) {
+  // Get cookies from request headers
+  const cookie = c.req.header('Cookie');
+  if (!cookie) {
     return c.json({ error: 'Not authenticated' }, 401);
   }
 
-  const accessTokenMatch = cookies.match(/access_token=([^;]+)/);
-  if (!accessTokenMatch) {
+  // Parse token from cookie
+  const token = cookie.match(/access_token=([^;]+)/)?.[1];
+  if (!token) {
     return c.json({ error: 'No access token provided' }, 401);
   }
 
-  const token = accessTokenMatch[1];
   const JWT_SECRET = c.env.JWT_SECRET || 'fallback-secret';
 
   try {
@@ -80,6 +110,9 @@ export const authMiddleware = async (c: Context, next: Next) => {
     c.set('userId', payload.userId);
     c.set('userEmail', payload.email);
     c.set('userRole', payload.role);
+
+    // Allow credentials for response
+    c.header('Access-Control-Allow-Credentials', 'true');
 
     await next();
   } catch (error) {

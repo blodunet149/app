@@ -14,6 +14,10 @@ app.get('/', authMiddleware, async (c) => {
 
   try {
     const menuItems = await db.select().from(schema.menu).all();
+    
+    // Allow credentials
+    c.header('Access-Control-Allow-Credentials', 'true');
+    
     return c.json({ menuItems });
   } catch (error) {
     return c.json({ error: 'Failed to get menu items' }, 500);
@@ -27,6 +31,10 @@ app.get('/available', authMiddleware, async (c) => {
   try {
     // Only get items that are currently available for ordering based on available dates
     const menuItems = await db.select().from(schema.menu).where(eq(schema.menu.available, true));
+    
+    // Allow credentials
+    c.header('Access-Control-Allow-Credentials', 'true');
+    
     return c.json({ menuItems });
   } catch (error) {
     return c.json({ error: 'Failed to get available menu items' }, 500);
@@ -69,6 +77,9 @@ app.post('/', authMiddleware, zValidator(
       })
       .returning();
 
+    // Allow credentials
+    c.header('Access-Control-Allow-Credentials', 'true');
+    
     return c.json({ menuItem: newMenuItem[0] });
   } catch (error) {
     return c.json({ error: 'Failed to create menu item' }, 500);
@@ -116,6 +127,9 @@ app.put('/:id', authMiddleware, zValidator(
       return c.json({ error: 'Menu item not found' }, 404);
     }
 
+    // Allow credentials
+    c.header('Access-Control-Allow-Credentials', 'true');
+    
     return c.json({ menuItem: updatedMenuItem[0] });
   } catch (error) {
     return c.json({ error: 'Failed to update menu item' }, 500);
@@ -144,6 +158,9 @@ app.delete('/:id', authMiddleware, async (c) => {
       return c.json({ error: 'Menu item not found' }, 404);
     }
 
+    // Allow credentials
+    c.header('Access-Control-Allow-Credentials', 'true');
+    
     return c.json({ success: true });
   } catch (error) {
     return c.json({ error: 'Failed to delete menu item' }, 500);

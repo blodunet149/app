@@ -7,7 +7,7 @@ import { eq, and, gte, lte } from 'drizzle-orm';
 
 const app = new Hono();
 
-// JWT utility functions
+// JWT utility functions for Workers Environment
 const encodeBase64 = (bytes: Uint8Array): string => {
   const binary = Array.from(bytes).map(byte => String.fromCharCode(byte)).join('');
   return btoa(binary);
@@ -23,7 +23,6 @@ const decodeBase64 = (str: string): Uint8Array => {
 };
 
 const encodeBase64Url = (str: string): string => {
-  // Convert string to bytes first
   const encoder = new TextEncoder();
   const bytes = encoder.encode(str);
   const base64 = encodeBase64(bytes);
@@ -40,25 +39,22 @@ const decodeBase64Url = (str: string): Uint8Array => {
   return decodeBase64(base64);
 };
 
-const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder();
-
 const createHmacSha256 = async (key: string, message: string): Promise<Uint8Array> => {
-  const textEncoder = new TextEncoder();
+  const encoder = new TextEncoder();
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    textEncoder.encode(key),
+    encoder.encode(key),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
   );
-
+  
   const signature = await crypto.subtle.sign(
     'HMAC',
     cryptoKey,
-    textEncoder.encode(message)
+    encoder.encode(message)
   );
-
+  
   return new Uint8Array(signature);
 };
 
@@ -70,44 +66,44 @@ const verifyHmacSha256 = async (key: string, message: string, signature: Uint8Ar
 const createJWT = async (payload: any, secret: string, expiresIn: number): Promise<string> => {
   const header = JSON.stringify({ alg: 'HS256', typ: 'JWT' });
   const encodedHeader = encodeBase64Url(header);
-
+  
   const exp = Math.floor(Date.now() / 1000) + expiresIn;
   const fullPayload = { ...payload, exp };
   const payloadStr = JSON.stringify(fullPayload);
   const encodedPayload = encodeBase64Url(payloadStr);
-
+  
   const signatureInput = `${encodedHeader}.${encodedPayload}`;
   const signatureArray = await createHmacSha256(secret, signatureInput);
   const encodedSignature = encodeBase64Url(signatureArray);
-
+  
   return `${signatureInput}.${encodedSignature}`;
 };
 
 const verifyJWT = async (token: string, secret: string): Promise<any | null> => {
   const [encodedHeader, encodedPayload, encodedSignature] = token.split('.');
-
+  
   if (!encodedHeader || !encodedPayload || !encodedSignature) {
     return null;
   }
-
+  
   const signatureInput = `${encodedHeader}.${encodedPayload}`;
   const signatureArray = decodeBase64Url(encodedSignature);
-
+  
   const isValid = await verifyHmacSha256(secret, signatureInput, signatureArray);
   if (!isValid) {
     return null;
   }
-
+  
   const payloadBytes = decodeBase64Url(encodedPayload);
-  const textDecoder = new TextDecoder();
-  const payloadStr = textDecoder.decode(payloadBytes);
+  const decoder = new TextDecoder();
+  const payloadStr = decoder.decode(payloadBytes);
   const payload = JSON.parse(payloadStr);
   const now = Math.floor(Date.now() / 1000);
-
+  
   if (payload.exp < now) {
     return null;
   }
-
+  
   return payload;
 };
 
@@ -140,7 +136,7 @@ app.post('/register', zValidator(
     const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
     
     // Create a derived key (simplified version of PBKDF2)
-    const combined = textEncoder.encode(password + saltHex);
+    const combined = new TextEncoder().encode(password + saltHex);
     let hashBuffer = combined;
     
     // Multiple iterations for better security
@@ -172,7 +168,7 @@ app.post('/register', zValidator(
       JWT_SECRET,
       3600 // 1 hour
     );
-
+    
     const refreshToken = await createJWT(
       { userId: newUser.id, type: 'refresh' },
       JWT_SECRET,
@@ -185,6 +181,9 @@ app.post('/register', zValidator(
       `refresh_token=${refreshToken}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${7 * 24 * 3600}`
     ]);
 
+    // Allow credentials
+    c.header('Access-Control-Allow-Credentials', 'true');
+    
     return c.json({ 
       success: true, 
       user: { 
@@ -227,7 +226,7 @@ app.post('/login', zValidator(
     const user = users[0];
     
     // Hash the provided password using the same method
-    const combined = textEncoder.encode(password + user.salt);
+    const combined = new TextEncoder().encode(password + user.salt);
     let hashBuffer = combined;
     
     // Multiple iterations to match registration
@@ -251,7 +250,7 @@ app.post('/login', zValidator(
       JWT_SECRET,
       3600 // 1 hour
     );
-
+    
     const refreshToken = await createJWT(
       { userId: user.id, type: 'refresh' },
       JWT_SECRET,
@@ -263,6 +262,9 @@ app.post('/login', zValidator(
       `access_token=${accessToken}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=3600`,
       `refresh_token=${refreshToken}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${7 * 24 * 3600}`
     ]);
+
+    // Allow credentials
+    c.header('Access-Control-Allow-Credentials', 'true');
 
     return c.json({ 
       success: true, 
@@ -286,6 +288,9 @@ app.post('/logout', async (c) => {
     'access_token=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0',
     'refresh_token=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0'
   ]);
+  
+  // Allow credentials
+  c.header('Access-Control-Allow-Credentials', 'true');
   
   return c.json({ success: true });
 });
@@ -329,6 +334,9 @@ app.get('/me', async (c) => {
       return c.json({ error: 'User not found' }, 404);
     }
 
+    // Allow credentials
+    c.header('Access-Control-Allow-Credentials', 'true');
+    
     return c.json({ user });
   } catch (error) {
     console.error('Get user error:', error);

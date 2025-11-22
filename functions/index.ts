@@ -7,8 +7,11 @@ import availableDates from './api/available-dates';
 
 const app = new Hono();
 
-// Enable CORS
-app.use('*', cors());
+// Enable CORS with credentials support
+app.use('*', cors({
+  origin: "*", // You can change this to your specific frontend domain
+  credentials: true
+}));
 
 // Include all API routes
 app.route('/api', auth);
