@@ -5,9 +5,7 @@ import { cloudflare } from '@hono/vite-cloudflare-pages'
 export default defineConfig({
   plugins: [
     tsconfigPaths(),
-    cloudflare({
-      d1: ['DB'],
-    }),
+    cloudflare(),
   ],
   build: {
     outDir: './dist/server',

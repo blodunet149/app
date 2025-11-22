@@ -75,10 +75,10 @@ const MenuAdminPage: React.FC = () => {
       }
 
       if (response.ok) {
-        const result = await response.json();
+        await response.json();
         resetForm();
         fetchMenuItems(); // Refresh the list
-        
+
         if (editingItem) {
           alert('Menu item updated successfully!');
         } else {
