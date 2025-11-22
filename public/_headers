@@ -1,0 +1,8 @@
+# Cloudflare Pages Headers Configuration
+# This file helps with proper asset caching and delivery
+
+/*
+  Cache-Control: public, max-age=600, stale-while-revalidate=86400
+
+/assets/*
+  Cache-Control: public, immutable, max-age=31536000
