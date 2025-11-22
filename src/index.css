@@ -1,8 +1,15 @@
-/* Global Styles */
+/* Global Styles - Force New Build 2025-11-22-2 */
+/* This forces a new CSS build with unique hash */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* Temporary style to force new hash */
+body.force-new-hash {
+  /* This ensures a new CSS file will be generated */
+  background-color: #f8f9fa;
 }
 
 body {
