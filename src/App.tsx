@@ -12,6 +12,13 @@ import OrderHistoryPage from '../pages/OrderHistory';
 import MenuAdminPage from '../pages/admin/MenuAdmin';
 import OrdersAdminPage from '../pages/admin/OrdersAdmin';
 
+// Admin Pages
+import AdminLayout from '../components/admin/AdminLayout';
+import AdminDashboard from '../pages/admin/AdminDashboard';
+import OrderSummaryPage from '../pages/admin/reports/OrderSummaryPage';
+import CookingSchedulePage from '../pages/admin/reports/CookingSchedulePage';
+import DailyReportPage from '../pages/admin/reports/DailyReportPage';
+
 // Components
 import Header from '../components/Header';
 
@@ -46,6 +53,10 @@ const AppRoutes: React.FC = () => {
         <Route path="/order-history" element={user && user.role === 'user' ? <OrderHistoryPage /> : <Navigate to="/login" replace />} />
         <Route path="/admin/menu" element={user && user.role === 'admin' ? <MenuAdminPage /> : <Navigate to="/login" replace />} />
         <Route path="/admin/orders" element={user && user.role === 'admin' ? <OrdersAdminPage /> : <Navigate to="/login" replace />} />
+        <Route path="/admin/dashboard" element={user && user.role === 'admin' ? <AdminDashboard /> : <Navigate to="/login" replace />} />
+        <Route path="/admin/reports/summary" element={user && user.role === 'admin' ? <OrderSummaryPage /> : <Navigate to="/login" replace />} />
+        <Route path="/admin/reports/cooking-schedule" element={user && user.role === 'admin' ? <CookingSchedulePage /> : <Navigate to="/login" replace />} />
+        <Route path="/admin/reports/daily-report" element={user && user.role === 'admin' ? <DailyReportPage /> : <Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
