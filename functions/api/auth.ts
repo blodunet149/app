@@ -8,22 +8,32 @@ import { eq, and, gte, lte } from 'drizzle-orm';
 const app = new Hono();
 
 // JWT utility functions
-const encodeBase64 = (str: string): string => {
-  return btoa(unescape(encodeURIComponent(str)));
+const encodeBase64 = (bytes: Uint8Array): string => {
+  const binary = Array.from(bytes).map(byte => String.fromCharCode(byte)).join('');
+  return btoa(binary);
 };
 
-const decodeBase64 = (str: string): string => {
-  return decodeURIComponent(escape(atob(str)));
+const decodeBase64 = (str: string): Uint8Array => {
+  const binary = atob(str);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
 };
 
 const encodeBase64Url = (str: string): string => {
-  return encodeBase64(str)
+  // Convert string to bytes first
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(str);
+  const base64 = encodeBase64(bytes);
+  return base64
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=/g, '');
 };
 
-const decodeBase64Url = (str: string): string => {
+const decodeBase64Url = (str: string): Uint8Array => {
   // Add padding if needed
   const padding = '='.repeat((4 - str.length % 4) % 4);
   const base64 = str.replace(/-/g, '+').replace(/_/g, '/') + padding;
@@ -34,6 +44,7 @@ const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
 const createHmacSha256 = async (key: string, message: string): Promise<Uint8Array> => {
+  const textEncoder = new TextEncoder();
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
     textEncoder.encode(key),
@@ -41,13 +52,13 @@ const createHmacSha256 = async (key: string, message: string): Promise<Uint8Arra
     false,
     ['sign']
   );
-  
+
   const signature = await crypto.subtle.sign(
     'HMAC',
     cryptoKey,
     textEncoder.encode(message)
   );
-  
+
   return new Uint8Array(signature);
 };
 
@@ -59,43 +70,44 @@ const verifyHmacSha256 = async (key: string, message: string, signature: Uint8Ar
 const createJWT = async (payload: any, secret: string, expiresIn: number): Promise<string> => {
   const header = JSON.stringify({ alg: 'HS256', typ: 'JWT' });
   const encodedHeader = encodeBase64Url(header);
-  
+
   const exp = Math.floor(Date.now() / 1000) + expiresIn;
   const fullPayload = { ...payload, exp };
-  const encodedPayload = encodeBase64Url(JSON.stringify(fullPayload));
-  
+  const payloadStr = JSON.stringify(fullPayload);
+  const encodedPayload = encodeBase64Url(payloadStr);
+
   const signatureInput = `${encodedHeader}.${encodedPayload}`;
   const signatureArray = await createHmacSha256(secret, signatureInput);
-  const encodedSignature = encodeBase64Url(Array.from(signatureArray).map(byte => String.fromCharCode(byte)).join(''));
-  
+  const encodedSignature = encodeBase64Url(signatureArray);
+
   return `${signatureInput}.${encodedSignature}`;
 };
 
 const verifyJWT = async (token: string, secret: string): Promise<any | null> => {
   const [encodedHeader, encodedPayload, encodedSignature] = token.split('.');
-  
+
   if (!encodedHeader || !encodedPayload || !encodedSignature) {
     return null;
   }
-  
+
   const signatureInput = `${encodedHeader}.${encodedPayload}`;
-  const signatureArray = new Uint8Array(
-    Array.from(decodeBase64Url(encodedSignature))
-      .map(char => char.charCodeAt(0))
-  );
-  
+  const signatureArray = decodeBase64Url(encodedSignature);
+
   const isValid = await verifyHmacSha256(secret, signatureInput, signatureArray);
   if (!isValid) {
     return null;
   }
-  
-  const payload = JSON.parse(decodeBase64Url(encodedPayload));
+
+  const payloadBytes = decodeBase64Url(encodedPayload);
+  const textDecoder = new TextDecoder();
+  const payloadStr = textDecoder.decode(payloadBytes);
+  const payload = JSON.parse(payloadStr);
   const now = Math.floor(Date.now() / 1000);
-  
+
   if (payload.exp < now) {
     return null;
   }
-  
+
   return payload;
 };
 
@@ -160,7 +172,7 @@ app.post('/register', zValidator(
       JWT_SECRET,
       3600 // 1 hour
     );
-    
+
     const refreshToken = await createJWT(
       { userId: newUser.id, type: 'refresh' },
       JWT_SECRET,
@@ -239,7 +251,7 @@ app.post('/login', zValidator(
       JWT_SECRET,
       3600 // 1 hour
     );
-    
+
     const refreshToken = await createJWT(
       { userId: user.id, type: 'refresh' },
       JWT_SECRET,
