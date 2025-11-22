@@ -26,4 +26,10 @@ export default defineConfig({
       }
     }
   },
+  // Tambahkan konfigurasi tambahan untuk memicu rebuild
+  css: {
+    modules: {
+      localsConvention: 'camelCase',
+    }
+  }
 })
