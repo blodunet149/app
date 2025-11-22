@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../src/hooks/useAuth';
 import { getDailyReport } from '../../../src/api/admin/reports';
+import OrderStatusManager from '../../../components/admin/OrderStatusManager';
+import StatusChart from '../../../components/admin/StatusChart';
 
 const DailyReportPage: React.FC = () => {
   const { user } = useAuth();
@@ -96,14 +98,7 @@ const DailyReportPage: React.FC = () => {
           
           <div className="status-breakdown">
             <h3>Orders by Status</h3>
-            <div className="status-grid">
-              {Object.entries(dailyReport.statistics.statusCounts).map(([status, count]) => (
-                <div key={status} className="status-item">
-                  <span className="status-name">{status}</span>
-                  <span className="status-count">{count}</span>
-                </div>
-              ))}
-            </div>
+            <StatusChart statusCounts={dailyReport.statistics.statusCounts} />
           </div>
           
           <div className="menu-breakdown">
@@ -160,7 +155,13 @@ const DailyReportPage: React.FC = () => {
                       <td>{order.menuName}</td>
                       <td>{order.quantity}</td>
                       <td>Rp {order.totalPrice?.toLocaleString()}</td>
-                      <td>{order.status}</td>
+                      <td>
+                        <OrderStatusManager
+                          orderId={order.id}
+                          currentStatus={order.status}
+                          onUpdate={() => fetchReport()}
+                        />
+                      </td>
                       <td>{order.paymentStatus}</td>
                       <td>{order.specialInstructions || '-'}</td>
                       <td>{new Date(order.createdAt).toLocaleTimeString()}</td>

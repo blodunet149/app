@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../src/hooks/useAuth';
 import { getOrderSummary } from '../../../src/api/admin/reports';
+import OrderStatusManager from '../../../components/admin/OrderStatusManager';
+import StatusChart from '../../../components/admin/StatusChart';
 
 const OrderSummaryPage: React.FC = () => {
   const { user } = useAuth();
@@ -50,6 +52,17 @@ const OrderSummaryPage: React.FC = () => {
       endDate: '',
       paymentStatus: ''
     });
+  };
+
+  const calculateStatusCounts = (orderList: any[]) => {
+    const statusCounts: Record<string, number> = {};
+
+    orderList.forEach(order => {
+      const status = order.status;
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+
+    return statusCounts;
   };
 
   if (!user || user.role !== 'admin') {
@@ -129,7 +142,10 @@ const OrderSummaryPage: React.FC = () => {
       </div>
       
       <div className="orders-list">
-        <h2>Orders</h2>
+        <div className="section-header">
+          <h2>Orders</h2>
+          <StatusChart statusCounts={calculateStatusCounts(orders)} />
+        </div>
         <div className="table-container">
           <table className="orders-table">
             <thead>
@@ -153,7 +169,13 @@ const OrderSummaryPage: React.FC = () => {
                   <td>{order.menuName}</td>
                   <td>{order.quantity}</td>
                   <td>Rp {order.totalPrice?.toLocaleString()}</td>
-                  <td>{order.status}</td>
+                  <td>
+                    <OrderStatusManager
+                      orderId={order.id}
+                      currentStatus={order.status}
+                      onUpdate={() => fetchSummary()}
+                    />
+                  </td>
                   <td>{order.paymentStatus}</td>
                   <td>{order.orderDate}</td>
                   <td>{new Date(order.createdAt).toLocaleString()}</td>

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../src/hooks/useAuth';
 import { getCookingSchedule, getPaidCookingSchedule } from '../../../src/api/admin/reports';
+import OrderStatusManager from '../../../components/admin/OrderStatusManager';
 
 const CookingSchedulePage: React.FC = () => {
   const { user } = useAuth();
@@ -159,7 +160,13 @@ const CookingSchedulePage: React.FC = () => {
                       <td>{order.userName}</td>
                       <td>{order.menuName}</td>
                       <td>{order.quantity}</td>
-                      <td>{order.status}</td>
+                      <td>
+                        <OrderStatusManager
+                          orderId={order.id}
+                          currentStatus={order.status}
+                          onUpdate={fetchSchedule}
+                        />
+                      </td>
                       <td>{order.paymentStatus}</td>
                       <td>{order.specialInstructions || '-'}</td>
                     </tr>
